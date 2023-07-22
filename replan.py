@@ -1,8 +1,10 @@
 import os, math, random, time
+from pydoc import doc
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from scipy.spatial.transform import Rotation as Rot
+#from sqlalchemy import true
 #moduli miei
 import env, plotting, utils, smoothing
 
@@ -212,15 +214,30 @@ class BITStar:
 
 
     #aggiungo rumore per muovere ostacoli e testare environment
-    def moveObstacles(self, dx, dy):
+    def moveObstacles(self, dx, dy, x_est, delta):
         #muovo ostacoli circolari
         for o in self.obs_circle:
-            o[0] = o[0] + np.random.uniform(-1, 1)*dx
-            o[1] = o[1] + np.random.uniform(-1, 1)*dy
+            #rumore random
+            dxo = np.random.uniform(-1, 1)*dx
+            dyo = np.random.uniform(-1, 1)*dy
+            #controlla se non e' collisione immediata
+            if math.hypot(x_est.S[0] - (o[0] + dxo), x_est.S[1] - (o[1] + dyo)) > o[2] + delta:
+                #aggiorna centro ostacolo
+                o[0] = o[0] + dxo
+                o[1] = o[1] + dyo
+
         #muovo ostacoli rettangolari
         for o in self.obs_rectangle:
-            o[0] = o[0] + np.random.uniform(-1, 1)*dx
-            o[1] = o[1] + np.random.uniform(-1, 1)*dy
+            #rumore random
+            dxo = np.random.uniform(-1, 1)*dx
+            dyo = np.random.uniform(-1, 1)*dy
+            #controlla se non e' collisione immediata
+            if 0 > x_est.S[0] - ((o[0] + dxo) - delta) <= o[2] + 2 * delta \
+                or 0 > x_est.S[1] - ((o[1] + dyo) - delta) <= o[3] + 2 * delta:
+                #aggiorna centro ostacolo
+                o[0] = o[0] + dxo
+                o[1] = o[1] + dyo
+
         #aggiorno ostacoli per utils
         self.utils.update_obs(self.obs_circle, self.obs_boundary, self.obs_rectangle)
 
@@ -533,7 +550,7 @@ def main():
 
     #dati problema
     x_start = (5, 5)
-    x_goal = (46, 27)
+    x_goal = (46, 28)
     steps = 4 #numero di step per volta
     iter = 0 #numero iterazioni
 
@@ -549,8 +566,8 @@ def main():
         #ciclo fino a che non arrivo alla fine
         while x_est != None:
 
-            #muovo ostacoli
-            bit.moveObstacles(1, 1)
+            #muovo ostacoli (no collisione immediata)
+            bit.moveObstacles(3, 3, x_est, bit.utils.delta)
             
             bit.cMin = bit.calc_dist(x_est, bit.x_goal) #nuovo costo minimo
             bit.m = round(sample_density * bit.cMin) #nuovo numero samples regione piu piccola
